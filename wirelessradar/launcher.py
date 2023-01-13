@@ -34,7 +34,7 @@ class RocketManager:
 							launcher = BlueRocketLauncher()
 						elif i == 2:
 #							launcher = BlueRocketLauncher()	# EXPERIMENTAL
-							return '''The '''+self.launcher_types[i]+''' ('''+self.housing_colors[i]+''') Rocket Launcher is not yet supported.  Try the '''+self.launcher_types[0]+''' or '''+self.launcher_types[1]+''' one.'''
+							return f'''The {self.launcher_types[i]} ({self.housing_colors[i]}) Rocket Launcher is not yet supported.  Try the {self.launcher_types[0]} or {self.launcher_types[1]} one.'''
 						elif i == 3:
 							launcher = BlackRocketLauncher()
 						elif i == 4:
@@ -113,10 +113,7 @@ class OriginalRocketLauncher:
 	# -----------------------------
 	def issue_command(self, command_index):
 
-		signal = 0
-		if command_index >= 0:
-			signal = 1 << command_index
-
+		signal = 1 << command_index if command_index >= 0 else 0
 		try:
 			self.handle.controlMsg(0x21, 0x09, [signal], 0x0200)
 

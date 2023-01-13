@@ -88,20 +88,21 @@ class MacRSSI():
 
 
     def handler(self, p):
-        if p.haslayer(Dot11):
-            # Check to make sure this is a management frame (type=0) and that
-            # the subtype is one of our management frame subtypes indicating a
-            # a wireless client
-            if p.addr2 and p.addr2.lower() == self.mac:
-                rssi = self.siglevel(p) if self.siglevel(p)!=-256 else -100
-                now = time.time()
-                self.hist.append((rssi, now))
-                for i, x in enumerate(self.hist):
-                    if x[1]>now-self.hist_size:
-                        self.hist = self.hist[i:]
-                        break
-                rbar = bar(100+rssi, 100, self.hist_size)
-                print "\r%-4s %s%s| %s        " % (rssi, rbar,' '*(40-len(rbar)), sparkline(self.hist,self.hist_size)),
+        if not p.haslayer(Dot11):
+            return
+        # Check to make sure this is a management frame (type=0) and that
+        # the subtype is one of our management frame subtypes indicating a
+        # a wireless client
+        if p.addr2 and p.addr2.lower() == self.mac:
+            rssi = self.siglevel(p) if self.siglevel(p)!=-256 else -100
+            now = time.time()
+            self.hist.append((rssi, now))
+            for i, x in enumerate(self.hist):
+                if x[1]>now-self.hist_size:
+                    self.hist = self.hist[i:]
+                    break
+            rbar = bar(100+rssi, 100, self.hist_size)
+            print "\r%-4s %s%s| %s        " % (rssi, rbar,' '*(40-len(rbar)), sparkline(self.hist,self.hist_size)),
 
 def main():
     cs=MacRSSI(sys.argv[1], sys.argv[2], sys.argv[3])

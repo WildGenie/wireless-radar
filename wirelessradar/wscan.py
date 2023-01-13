@@ -135,8 +135,9 @@ class Scanner():
 
     def apCount(self, batch):
         # x, y, date, bssid, rssi, name
+        count = len({item[3] for item in batch})
+        # x, y, date, bssid, rssi, name
         count=len(set([item[3] for item in batch]))
-        print >>sys.stderr, "%4s %4s %s %s" % (self.x, self.y, count, '▬'*count)
         return batch
 
     def stats(self):
@@ -163,9 +164,15 @@ class Scanner():
             radar[int(item[2]/((HMAX+1.0)/20))][1]+=1
         tmp=[x[0]/x[1] if x[1] else None for x in radar]
         if not [x for x in tmp if x]:
-            return "%s" % ' '*20
-        tmp=[y or min([x for x in tmp if x])-((max([x for x in tmp if x])-min([x for x in tmp if x]))/8)-1 for y in tmp]
-        return "%s" % s.spark(tmp).encode('utf8')
+            return ' ' * 20
+        tmp = [
+            y
+            or min(x for x in tmp if x)
+            - (max(x for x in tmp if x) - min(x for x in tmp if x)) / 8
+            - 1
+            for y in tmp
+        ]
+        return f"{s.spark(tmp).encode('utf8')}"
 
     def load(self,file):
         for line in file.readlines():
@@ -175,8 +182,7 @@ class Scanner():
                 pass
 
     def ordered(self, by='dir'):
-        if by=='rssi': sortby=3
-        else: sortby=4
+        sortby = 3 if by=='rssi' else 4
         return sorted([(ap, data['name'])+max(data['rssi'], key=itemgetter(1))
                        for ap, data in self.aps.items()],
                       key=itemgetter(sortby))
@@ -213,12 +219,13 @@ class Scanner():
         # use with - where the param to tail controls how many past scans to consider:
         # cat $(ls -rt logs/*.log | tail -5) | ./wscan.py lock <bssid> >logs/$(date '+%s').log
         top=sorted(self.aps[target]['rssi'], key=itemgetter(1), reverse=True)
-        sample_size=30 if len(top)>30 else len(top)
+        sample_size = min(len(top), 30)
         posx=sum([x[2] for x in top][:sample_size])/sample_size
         posy=sum([x[3] for x in top][:sample_size])/sample_size
         rssi=sum([x[1] for x in top][:sample_size])/sample_size
-        # go to last known best position
-        print >>sys.stderr, "|%s| %4s %4s %4s" % (self.apspark(self.aps[target]), posx, posy, rssi)
+        # use with - where the param to tail controls how many past scans to consider:
+        # cat $(ls -rt logs/*.log | tail -5) | ./wscan.py lock <bssid> >logs/$(date '+%s').log
+        top=sorted(self.aps[target]['rssi'], key=itemgetter(1), reverse=True)
         self.movetox(posx)
         self.movetoy(posy)
 
@@ -230,10 +237,10 @@ class Scanner():
         best=None
 
         try:
-            while True:
-                # scan a bit
-                pop=15
+            # scan a bit
+            pop=15
 
+            while True:
                 #samples=[x[4] for x in self.scan(c=pop, cb=partial(self.apRSSI,target)) if x[3]==target]
                 samples=self.scan(c=pop)
                 self.apRSSI(target, samples)

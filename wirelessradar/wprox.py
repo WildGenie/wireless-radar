@@ -127,9 +127,7 @@ class ChanSniffer():
     def guesstype(self, other, p):
         t = self.peers.get(other,{}).get('type')
         if t:
-            if t == 'ap':
-                t = 'client'
-            else: t = 'ap'
+            t = 'client' if t == 'ap' else 'ap'
         return t
 
     def fixtype(self, k, t, p):
@@ -140,79 +138,82 @@ class ChanSniffer():
             self.peers[dev]['type']='ap' if t == 'client' else 'client'
 
     def handler(self, p):
-        if p.haslayer(Dot11):
-            if p.type == 0:
-                if p.subtype in (0,2,4):
-                    if p.addr2 not in self.peers:
-                        #print "[new] %s %s\t%s" % (p.addr2.upper(),
-                        #                           repr(p.info),
-                        #                           OUI(p.addr2[:8].replace(':','-')).registration().org)
-                        self.newdev(p.addr2, 'client', p)
-                    elif repr(p.info) not in self.peers[p.addr2].get('ssids',[]):
-                        #print "[add] %s %s\t%s" % (p.addr2.upper(),
-                        #                                    repr(p.info),
-                        #                                    OUI(p.addr2[:8].replace(':','-')).registration().org)
-                        self.adddev(p.addr2, p)
-                    else:
-                        self.addseen(p.addr2, p)
-                    if not self.peers[p.addr2]['type']:
-                        self.fixtype(p.addr2, 'client',p)
-                elif p.subtype == 8: # beacon
-                    if p.addr2 not in self.peers:
-                        #print "{new} %s %s\t%s" % (p.addr2.upper(),
-                        #                           repr(p.info),
-                        #                           OUI(p.addr2[:8].replace(':','-')).registration().org)
-                        self.newdev(p.addr2, 'ap', p)
-                    elif repr(p.info) not in self.peers[p.addr2].get('ssids',[]):
-                        #print "{add} %s %s\t%s" % (p.addr2.upper(),
-                        #                           repr(p.info),
-                        #                           OUI(p.addr2[:8].replace(':','-')).registration().org)
-                        self.adddev(p.addr2, p)
-                    else:
-                        self.addseen(p.addr2, p)
-                    if not self.peers[p.addr2]['type']:
-                        self.fixtype(p.addr2, 'ap',p)
-            if p.type == 2:
-                if (p.addr1.lower() not in ['ff:ff:ff:ff:ff:ff',        # broadcast
-                                            '01:00:0c:cc:cc:cd',        # PVSTP+ BPDU
-                                            '01:00:0c:cc:cc:cc',        # cisco discovery protocol
-                                            '01:40:96:ff:ff:ff',        # IAPP multicast
-                                            '01:80:c2:00:00:00',        # STP multicast
-                                            '01:80:c2:00:00:0e',        # Link Layer Discovery Protocol
-                                            '01:80:c2:00:00:03',        #
-                                            '01:80:c2:00:00:00',] and   # lldp end
-                    not p.addr1.startswith('33:33') and   # ipv6 multicast
-                    p.addr1[:8] not in ['02:00:5e',       # Modified EUI-64 unicast identifier
-                                        '01:00:5e',       # multicast
-                                        '00:00:5e']):     # unicast
-                    dst = p.addr1
-                else:
-                    dst = None
+        if not p.haslayer(Dot11):
+            return
+        if p.type == 0:
+            if p.subtype in (0,2,4):
                 if p.addr2 not in self.peers:
-                    t = self.guesstype(dst, p)
-                    self.newpeer(p.addr2, [dst] if dst else [], t, p)
-                elif self.peers[p.addr2]['seen'][-1]['ts']+0.2<time.time():
+                    #print "[new] %s %s\t%s" % (p.addr2.upper(),
+                    #                           repr(p.info),
+                    #                           OUI(p.addr2[:8].replace(':','-')).registration().org)
+                    self.newdev(p.addr2, 'client', p)
+                elif repr(p.info) not in self.peers[p.addr2].get('ssids',[]):
+                    #print "[add] %s %s\t%s" % (p.addr2.upper(),
+                    #                                    repr(p.info),
+                    #                                    OUI(p.addr2[:8].replace(':','-')).registration().org)
+                    self.adddev(p.addr2, p)
+                else:
                     self.addseen(p.addr2, p)
-                if dst:
-                    if dst not in self.peers:
-                        t = self.guesstype(p.addr2, p)
-                        self.newpeer(dst, [p.addr2], t, p)
-                    if dst not in self.peers[p.addr2].get('peers',[]):
-                        self.addpeer(p.addr2, dst, p)
-                        #print "<con> %s %s <-> %s %s" % (p.addr2, self.peers[p.addr2], dst, self.peers[dst])
+                if not self.peers[p.addr2]['type']:
+                    self.fixtype(p.addr2, 'client',p)
+            elif p.subtype == 8: # beacon
+                if p.addr2 not in self.peers:
+                    #print "{new} %s %s\t%s" % (p.addr2.upper(),
+                    #                           repr(p.info),
+                    #                           OUI(p.addr2[:8].replace(':','-')).registration().org)
+                    self.newdev(p.addr2, 'ap', p)
+                elif repr(p.info) not in self.peers[p.addr2].get('ssids',[]):
+                    #print "{add} %s %s\t%s" % (p.addr2.upper(),
+                    #                           repr(p.info),
+                    #                           OUI(p.addr2[:8].replace(':','-')).registration().org)
+                    self.adddev(p.addr2, p)
+                else:
+                    self.addseen(p.addr2, p)
+                if not self.peers[p.addr2]['type']:
+                    self.fixtype(p.addr2, 'ap',p)
+        if p.type == 2:
+            if (p.addr1.lower() not in ['ff:ff:ff:ff:ff:ff',        # broadcast
+                                        '01:00:0c:cc:cc:cd',        # PVSTP+ BPDU
+                                        '01:00:0c:cc:cc:cc',        # cisco discovery protocol
+                                        '01:40:96:ff:ff:ff',        # IAPP multicast
+                                        '01:80:c2:00:00:00',        # STP multicast
+                                        '01:80:c2:00:00:0e',        # Link Layer Discovery Protocol
+                                        '01:80:c2:00:00:03',        #
+                                        '01:80:c2:00:00:00',] and   # lldp end
+                not p.addr1.startswith('33:33') and   # ipv6 multicast
+                p.addr1[:8] not in ['02:00:5e',       # Modified EUI-64 unicast identifier
+                                    '01:00:5e',       # multicast
+                                    '00:00:5e']):     # unicast
+                dst = p.addr1
+            else:
+                dst = None
+            if p.addr2 not in self.peers:
+                t = self.guesstype(dst, p)
+                self.newpeer(p.addr2, [dst] if dst else [], t, p)
+            elif self.peers[p.addr2]['seen'][-1]['ts']+0.2<time.time():
+                self.addseen(p.addr2, p)
+            if dst:
+                if dst not in self.peers:
+                    t = self.guesstype(p.addr2, p)
+                    self.newpeer(dst, [p.addr2], t, p)
+                if dst not in self.peers[p.addr2].get('peers',[]):
+                    self.addpeer(p.addr2, dst, p)
+                    #print "<con> %s %s <-> %s %s" % (p.addr2, self.peers[p.addr2], dst, self.peers[dst])
 
-                        # deauth to see roles?
-                        #sendp(RadioTap()/Dot11(type=0,subtype=12,addr1=p.addr2,addr2=p.addr3,addr3=p.addr3)/Dot11Deauth())
-                    if p.addr2 not in self.peers[dst].get('peers',[]):
-                        self.addpeer(dst, p.addr2, p)
+                    # deauth to see roles?
+                    #sendp(RadioTap()/Dot11(type=0,subtype=12,addr1=p.addr2,addr2=p.addr3,addr3=p.addr3)/Dot11Deauth())
+                if p.addr2 not in self.peers[dst].get('peers',[]):
+                    self.addpeer(dst, p.addr2, p)
 
-            if self.lastseen and self.timeout and self.lastseen+self.timeout<time.time():
-                self.end_sniffing=True
-            if self.verbose and self.lastshown+2<time.time():
-                print >>sys.stderr, '-' * 138
-                print >>sys.stderr, self.display()
-                print >>sys.stderr, "listening on %s chan: %s (%s)" % (self.interface, self.freq, freqmap[int(self.freq)])
-                self.lastshown = time.time()
+        if self.lastseen and self.timeout and self.lastseen+self.timeout<time.time():
+            self.end_sniffing=True
+        if self.lastseen and self.timeout and self.lastseen+self.timeout<time.time():
+            self.end_sniffing=True
+        if self.verbose and self.lastshown+2<time.time():
+            print >>sys.stderr, '-' * 138
+            print >>sys.stderr, self.display()
+            print >>sys.stderr, "listening on %s chan: %s (%s)" % (self.interface, self.freq, freqmap[int(self.freq)])
+            self.lastshown = time.time()
 
     def stop_sniffing(self, pkt):
         return self.end_sniffing
@@ -223,7 +224,7 @@ class ChanSniffer():
         mn = min(x['rssi'] for x in data)
         avg = sum(x['rssi'] for x in data) / count
         sprd = mx - mn
-        chan = sorted(set(int(x['chan']) for x in data))
+        chan = sorted({int(x['chan']) for x in data})
         return u"[%-18s] %4s %4s %4s %4s %2s [%-5s]" % (tointrange(chan),
                                                         count,
                                                         mx,
@@ -234,13 +235,13 @@ class ChanSniffer():
 
     def print_client(self, k, v):
         if v['type']!='client':
-            return '[wtf] type is not client %s %s' % (k, v)
+            return f'[wtf] type is not client {k} {v}'
         try:
             vendor = OUI(k[:8].replace(':','-')).registration().org
         except:
             vendor = ''
         if len(vendor)>20:
-            vendor = "%s..." % vendor[:20]
+            vendor = f"{vendor[:20]}..."
         flags=''.join([flagmap.get(k[:8], ''), flagmap36.get(k[:13], '')])
         return "%s %-23s %s %-3s %s" % (k,
                                         vendor,
